@@ -50,6 +50,8 @@ def to_csv_desc(df, f_path, desc):
         f.write(desc)
     df.to_csv(f_path, mode="a", index=False)
 
+    print(f"--> {f_path}")
+
 
 def process_cdp(df_cdp2, params):
     # Retrieve and consolidate CDP2 output files
@@ -138,14 +140,15 @@ def wrapper(src_p, to):
     df = process_cdp(df_cdp2, params)
 
     # Output options
-    if (to := Path(to)) is None:
+    if to is None:
         dst_p = csv_list[0].parent
     else:
-        if not to.is_dir():
+        if not (to := Path(to)).is_dir():
             raise ValueError("Not a valid CDP2 output directory path")
         dst_p = to
 
     # Write 10-second dataset
+    print("Writing post-processed CSV output files...")
     to_csv_desc(df, f"{dst_p}/CDP2_{src_p.name}.csv", desc)
 
     # Further process the output dataset for 10-minute version
