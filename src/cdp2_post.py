@@ -41,7 +41,7 @@ the cloud properties showing upper boundaries of the corresponding size
 bin in diameter.
 
 Dataset Created by Loren Oh (loh@kopri.re.kr)
-Last modified on April 2022 \n
+Last modified on Oct 2022 \n
 """
 
 
@@ -61,8 +61,8 @@ def process_cdp(df_cdp2, params):
         df_cdp2["End Seconds"] = np.arange(7, 86400, 10)
 
     # Basic filtering with a soft filter
-    mask = df_cdp2["DT Bandwidth"] < 12
-    mask = mask & (df_cdp2["Avg Transit Time"] < 100)
+    mask = (df_cdp2["Dump Spot Monitor (V)"] > 0.5)
+    mask = mask & (df_cdp2["Avg Transit Time"] < 120)
 
     # Adjust measured values based on passing air speed (PAS)
     df_cdp2.loc[df_cdp2["Avg Transit Time"] == 0, "Avg Transit Time"] = np.nan
@@ -75,11 +75,17 @@ def process_cdp(df_cdp2, params):
         "LWC (g/m^3)",
         "MVD (um)",
         "ED (um)",
+        "PAS (m/s)"
     ]
 
     df = pd.DataFrame()
     for item in cdp2_vars:
-        _var = df_cdp2[item].copy(deep=True)
+        if item == "PAS (m/s)":
+            df[f"{item}"] = (150 / df_cdp2["Avg Transit Time"])
+
+            continue
+        else:
+            _var = df_cdp2[item].copy(deep=True)
 
         if item == "End Seconds":
             df[item] = _var
@@ -102,7 +108,7 @@ def process_cdp(df_cdp2, params):
     # Replace unavailable values with -1
     df.loc[df.isnull().any(axis=1), df.columns[1:]] = -1
 
-    # Filter rows with LWC < 1e-3 kg/m3
+    # Filter rows with LWC < 1e-5 kg/m3
     mask = (df["LWC (g/m^3)"] < 1e-5) & (df["LWC (g/m^3)"] > 0)
     df.loc[mask, df.columns[1:]] = 0
 
@@ -135,6 +141,11 @@ def wrapper(src_p, to):
     csv_list = sorted(Path(src_p).rglob("*.csv"))
 
     df_cdp2 = lib.io.read_cdp(csv_list)
+
+    if len(df_cdp2) == 0:
+        print("No record found")
+        return
+
     params = lib.param.get_params(csv_list)
 
     df = process_cdp(df_cdp2, params)
