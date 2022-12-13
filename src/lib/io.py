@@ -9,8 +9,11 @@ def read_cdp(csv_list):
     for item in csv_list:
         item = Path(item)
 
-        if re.search("(\w+\s*)CDP(\s*\w+)", item.name) is not None:
+        if re.search("(\w+\s*)CDP(\d+\s*).csv", item.name) is not None:
             _df = pd.read_csv(item, skiprows=58)
+            df_cdp2 = pd.concat([df_cdp2, _df], ignore_index=True)
+        elif re.search("(\w+\s*)CDP PBP(\d+\s*).csv", item.name) is not None:
+            _df = pd.read_csv(item, skiprows=60)
             df_cdp2 = pd.concat([df_cdp2, _df], ignore_index=True)
         else:
             pass

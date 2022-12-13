@@ -3,8 +3,6 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-from tqdm import tqdm
-
 import click
 
 
@@ -18,7 +16,7 @@ add_path(Path(".").resolve())
 try:
     import lib.io
     import lib.param
-    import lib.conv
+    from lib.conv import g_cov
 except Exception:
     raise Exception("Issue with dynamic import")
 
@@ -41,7 +39,7 @@ the cloud properties showing upper boundaries of the corresponding size
 bin in diameter.
 
 Dataset Created by Loren Oh (loh@kopri.re.kr)
-Last modified on Oct 2022 \n
+Last modified on Dec 2022 \n
 """
 
 
@@ -60,12 +58,17 @@ def process_cdp(df_cdp2, params):
     if len(df_cdp2) == 1:
         df_cdp2["End Seconds"] = np.arange(7, 86400, 10)
 
+    dsm = df_cdp2["Dump Spot Monitor (V)"]
+
     # Basic filtering with a soft filter
-    mask = (df_cdp2["Dump Spot Monitor (V)"] > 0.5)
-    mask = mask & (df_cdp2["Avg Transit Time"] < 120)
+    mask = (
+        (dsm > 0.6)
+        & (df_cdp2["Avg Transit Time"] < 150)
+        & (df_cdp2["Avg Transit Time"] > 0.5)
+        & (np.abs(np.gradient(g_cov(dsm))) < 1.5e-3)
+    )
 
     # Adjust measured values based on passing air speed (PAS)
-    df_cdp2.loc[df_cdp2["Avg Transit Time"] == 0, "Avg Transit Time"] = np.nan
     adj_fac = df_cdp2["Applied PAS (m/s)"] / (150 / df_cdp2["Avg Transit Time"])
 
     # Take samples from the dataframe
@@ -81,7 +84,7 @@ def process_cdp(df_cdp2, params):
     df = pd.DataFrame()
     for item in cdp2_vars:
         if item == "PAS (m/s)":
-            df[f"{item}"] = (150 / df_cdp2["Avg Transit Time"])
+            df[item] = (150 / df_cdp2["Avg Transit Time"])
 
             continue
         else:
@@ -94,14 +97,14 @@ def process_cdp(df_cdp2, params):
         _var.loc[~mask] = np.nan
         if item in ["Number Conc (#/cm^3)", "LWC (g/m^3)"]:
             df[f"Raw {item}"] = _var * adj_fac
-            df[f"{item}"] = lib.conv.g_cov(_var * adj_fac)
+            df[item] = lib.conv.g_cov(_var * adj_fac)
         else:
             df[item] = lib.conv.g_cov(_var)
 
     # Append size distribution to Dataframe
     bins = params["Sizes"]
 
-    bin_cols = df_cdp2.columns[31:-1]
+    bin_cols = [k for k in df_cdp2.columns if k.startswith('CDP Bin')]
     for i, col in enumerate(bin_cols):
         df.loc[:, f"{bins[i]} um"] = df_cdp2[col]
 
@@ -113,8 +116,7 @@ def process_cdp(df_cdp2, params):
     df.loc[mask, df.columns[1:]] = 0
 
     # Replace time with an integer array
-    st = df["End Seconds"].to_numpy(dtype=int)
-    df["End Seconds"] = st
+    df["End Seconds"] = df["End Seconds"].to_numpy(dtype=int)
 
     return df
 

@@ -19,7 +19,7 @@ def gauss2d(x=5, sig=1):
 
 
 # Wrapper for convolution
-def g_cov(arr, x=300, sig=300):
+def g_cov(arr, x=30, sig=60):
     if np.nansum(arr) == 0:
         return arr
 

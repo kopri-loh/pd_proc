@@ -1,8 +1,4 @@
 from pathlib import Path
-from pyexpat import ExpatError
-
-import numpy as np
-import click
 
 
 # Set-up local (and temporary) sys.path for import
@@ -13,36 +9,37 @@ from context import add_path
 add_path(Path(".").resolve())
 
 try:
-    from cdp2_post import process_cdp as proc
+    import lib.io
+    import lib.param
+    import lib.conv
+except Exception:
+    raise Exception("Issue with dynamic import")
+
+try:
+    from cdp2_post import process_cdp
 except Exception:
     raise Exception("Issue with dynamic import")
 
 
-@click.command()
-@click.argument("cdp2_path")
-def test(cdp2_path):
-    if ~Path(cdp2_path).is_dir():
-        raise ValueError("Not a valid CDP2 output directory path")
-
-    df = proc(cdp2_path)
+def test():
     src_path = Path("/home/loh/Storage/CDP2")
+
     # Path to CDP2 dataset
-    cdp_target = sorted(src_path.glob("201910*"))[1]
+    src_p = sorted(src_path.glob("2022*"))[0]
 
-    df = proc(cdp_target)
+    csv_list = sorted(Path(src_p).rglob("*.csv"))
 
-    # Further process the output dataset for 10-minute version
-    df.loc[df["LWC (g/m^3)"] < 0, df.columns[1:]] = np.nan
-    df_10min = df[df.columns[1:]].rolling(60, min_periods=1).mean()
-    df_10min.insert(0, column="End Seconds", value=df["End Seconds"])
-    df_10min.loc[
-        (~np.isfinite(df_10min["LWC (g/m^3)"])), df_10min.columns[1:]
-    ] = -1
+    df_cdp2 = lib.io.read_cdp(csv_list)
 
-    # Take samples at 10-minute-period
-    df_10min = df_10min.iloc[::60]
+    if len(df_cdp2) == 0:
+        print("No record found")
+        return
 
-    print(df_10min.head())
+    params = lib.param.get_params(csv_list)
+
+    df = process_cdp(df_cdp2, params)
+    print(df)
+    print(df.columns)
 
 
 if __name__ == "__main__":
