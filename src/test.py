@@ -1,8 +1,6 @@
+import click
+
 from pathlib import Path
-
-
-# Set-up local (and temporary) sys.path for import
-# All scripts for calculations and plots need this
 from context import add_path
 
 
@@ -16,7 +14,8 @@ except Exception:
     raise Exception("Issue with dynamic import")
 
 try:
-    from cdp2_post import process_cdp
+    import post_cdp2
+    import post_bcpd
 except Exception:
     raise Exception("Issue with dynamic import")
 
@@ -24,22 +23,16 @@ except Exception:
 def test():
     src_path = Path("/home/loh/Storage/CDP2")
 
-    # Path to CDP2 dataset
-    src_p = sorted(src_path.glob("2022*"))[0]
-
+    # Sample dataset with both valid CDP2 and BCPD output files
+    # Change as necessary
+    src_p = src_path / "20230225"
     csv_list = sorted(Path(src_p).rglob("*.csv"))
 
-    df_cdp2 = lib.io.read_cdp(csv_list)
+    df_cdp2, par_cdp2 = lib.io.read_cdp2(csv_list)
+    df_pbp, df_bcpd, par_bcpd = lib.io.read_bcpd(csv_list)
 
-    if len(df_cdp2) == 0:
-        print("No record found")
-        return
-
-    params = lib.param.get_params(csv_list)
-
-    df = process_cdp(df_cdp2, params)
-    print(df)
-    print(df.columns)
+    print(post_cdp2.process(df_cdp2, par_cdp2))
+    print(post_bcpd.process(df_pbp, df_bcpd, par_bcpd))
 
 
 if __name__ == "__main__":

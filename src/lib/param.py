@@ -11,9 +11,7 @@ def get_buf(buf):
         key, val = x.rstrip().split("=")
 
         if key in ["Sizes", "Thresholds"]:
-            val = np.fromstring(
-                re.sub("<[0-9]+>", "", val), dtype=np.int64, sep=","
-            )
+            val = np.fromstring(re.sub("<[0-9]+>", "", val), dtype=np.int64, sep=",")
 
         params[key] = val
 
@@ -21,12 +19,24 @@ def get_buf(buf):
 
 
 def get_params(csv_list):
-    # Retrieve instrument parameters from CDP2 configuration file
+    # Retrieve instrument parameters
     for item in csv_list:
         item = Path(item)
 
-        if re.search("(\d+\s*)CDP(\s*\w+\s*).csv", item.name) is not None:
-            cdp_file = item
+        print(item.name)
 
-            with open(cdp_file) as f:
-                return get_buf(f.readlines())
+        f_params = ""
+        if pd_type == "CDP2":
+            if re.search(r"(\d+\s*)CDP(\s*\w+\s*).csv", item.name) is not None:
+                f_params = item
+        elif pd_type == "BCPD":
+            if re.search(r"(\w+\s*)BCPD Beta(\s*\w+)", item.name) is not None:
+                f_params = item
+        else:
+            raise ValueError("Invalid instrument type")
+
+    if f_params == "":
+        raise ValueError("Parameters cannot be retrieved")
+
+    with open(f_params) as f:
+        return get_buf(f.readlines())
