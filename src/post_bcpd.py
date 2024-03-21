@@ -176,7 +176,7 @@ def process(df, df_bcpd, params):
     # Retrieve and consolidate BCPD output files
 
     # Fix empty dataframe
-    if len(df) == 1:
+    if len(df) <= 1:
         df["End Seconds"] = np.arange(7, 86400, 10)
 
     # Take samples from the dataframe

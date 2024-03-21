@@ -21,7 +21,9 @@ def get_buf(buf):
 
 def _append(item, df, skiprows):
     _df = pd.read_csv(item, skiprows=skiprows)
-    _df = pd.concat([_df, df], ignore_index=True)
+
+    if len(_df) > 1:
+        _df = pd.concat([_df, df], ignore_index=True)
 
     with open(item) as f:
         params = get_buf(f.readlines())
@@ -53,7 +55,9 @@ def read_bcpd(csv_list):
 
         if re.search(r"(\w+\s*)PbP(\s*\w+)", item.name) is not None:
             _df = pd.read_csv(item, skiprows=9)
-            df_pbp = pd.concat([df_pbp, _df], ignore_index=True)
+
+            if len(_df) > 1:
+                df_pbp = pd.concat([df_pbp, _df], ignore_index=True)
         elif re.search(r"(\w+\s*)Beta(\s*\w+)", item.name) is not None:
             df_bcpd, params = _append(item, df_bcpd, skiprows=88)
         else:
