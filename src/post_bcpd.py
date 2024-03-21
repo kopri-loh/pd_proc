@@ -286,3 +286,5 @@ def post_bcpd(src_p, to):
 
     # Write 10-minute dataset
     lib.io.to_csv_desc(df_10min, f"{dst_p}/10MIN_BCPD_{src_p.name}.csv", desc)
+
+    print("")
