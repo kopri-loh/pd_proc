@@ -40,7 +40,7 @@ def process(df_cdp2, params):
     # Retrieve and consolidate CDP2 output files
 
     # Fix empty dataframe
-    if len(df_cdp2) == 1:
+    if len(df_cdp2) <= 1:
         df_cdp2["End Seconds"] = np.arange(7, 86400, 10)
 
     dsm = df_cdp2["Dump Spot Monitor (V)"]

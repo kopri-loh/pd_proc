@@ -42,36 +42,29 @@ sample_area = 0.342 / 1e6  # [m^2]
 
 def calc_LWC(grp):
     p_sig = np.nansum((grp["S Peak"], grp["P Peak"]), axis=0)
-
-    # Re-calculate sampling volume based on S&P transit times
-    # Transit times are always in units of 25 ns
-    s_time = grp["S Transit Time"] * 25
-    p_time = grp["P Transit Time"] * 25
-
-    t_sig = np.nansum((s_time, p_time), axis=0)
+    pas = calc_PAS(grp)
 
     lwc = 0
-    for i, _ in enumerate(thresholds[1:-1]):
+    for i, _ in enumerate(thresholds[0:-2]):
         b_mask = (p_sig >= thresholds[i]) & (p_sig <= thresholds[i + 1])
 
         if np.nansum(b_mask) == 0:
             continue
 
         # Re-define sample volume with laser width and true PAS
-        if (_tt := np.nanmean(t_sig[b_mask])) > 0:
-            pas = 50 / _tt * 1e3  # [/s]
-            sample_vol = pas * 1 * sample_area  # [m^3]
+        sample_vol = pas * 10 * sample_area  # [m^3]
 
-            c_i = np.nansum(b_mask) / sample_vol  # [#/m^3]
+        c_i = np.nansum(b_mask) / sample_vol  # [#/m^3]
 
-            lwc_i = c_i * np.pi / 6 * m_bins[i] ** 3 * 1e-12  # [g/m^3]
-            lwc = np.nansum((lwc, lwc_i))
+        lwc_i = c_i * np.pi / 6 * m_bins[i] ** 3 * 1e-12  # [g/m^3]
+        lwc = np.nansum((lwc, lwc_i))
 
     return lwc
 
 
 def calc_NC(grp):
     p_sig = np.nansum((grp["S Peak"], grp["P Peak"]), axis=0)
+    pas = calc_PAS(grp)
 
     # Re-calculate sampling volume based on S&P transit times
     # Transit times are always in units of 25 ns
@@ -83,14 +76,9 @@ def calc_NC(grp):
     # Count all qualifying signals
     b_mask = (p_sig > thresholds[0]) & (p_sig <= thresholds[-1])
 
-    if (_tt := np.nanmean(t_sig[b_mask])) > 0:
-        pas = 50 / _tt * 1e3  # [/s]
-        sample_vol = pas * 1 * sample_area  # [m^3]
-        n_conc = np.nansum(b_mask) / sample_vol  # [#/cm^3]
+    sample_vol = pas * 10 * sample_area  # [m^3]
 
-        return n_conc
-    else:
-        return np.nan
+    return np.nansum(b_mask) / sample_vol / 10**6  # [#/cm^3]
 
 
 def calc_MVD(grp):
@@ -98,37 +86,28 @@ def calc_MVD(grp):
     if (lwc := calc_LWC(grp)) == 0:
         return 0
 
+    p_sig = np.nansum((grp["S Peak"], grp["P Peak"]), axis=0)
+    pas = calc_PAS(grp)
+
     cum = 0
-    for i, _ in enumerate(thresholds[1:-1]):
-        p_sig = np.nansum((grp["S Peak"], grp["P Peak"]), axis=0)
+    for i, _ in enumerate(thresholds[0:-2]):
+        b_mask = (p_sig >= thresholds[i]) & (p_sig <= thresholds[i + 1])
 
-        # Re-calculate sampling volume based on S&P transit times
-        # Transit times are always in units of 25 ns
-        s_time = grp["S Transit Time"] * 25
-        p_time = grp["P Transit Time"] * 25
+        if np.nansum(b_mask) == 0:
+            continue
 
-        t_sig = np.nansum((s_time, p_time), axis=0)
+        pro_i = 0
 
-        for i, _ in enumerate(thresholds[1:-1]):
-            b_mask = (p_sig >= thresholds[i]) & (p_sig <= thresholds[i + 1])
+        sample_vol = pas * 10 * sample_area  # [m^3]
 
-            if np.nansum(b_mask) == 0:
-                continue
+        c_i = np.nansum(b_mask) / sample_vol  # [#/m^3]
+        lwc_i = c_i * np.pi / 6 * m_bins[i] ** 3 * 1e-12  # [g/m^3]
+        pro_i = lwc_i / lwc
 
-            pro_i = 0
+        if (cum := np.nansum((cum, pro_i))) >= 0.5:
+            mvd = bins[i] + ((0.5 - cum) / pro_i) * (bins[i + 1] - bins[i])
 
-            if (_tt := np.nanmean(t_sig[b_mask])) > 0:
-                pas = 50 / _tt * 1e3  # [/s]
-                sample_vol = pas * 1 * sample_area  # [m^3]
-
-                c_i = np.nansum(b_mask) / sample_vol  # [#/m^3]
-                lwc_i = c_i * np.pi / 6 * m_bins[i] ** 3 * 1e-12  # [g/m^3]
-                pro_i = lwc_i / lwc
-
-            if (cum := np.nansum((cum, pro_i))) >= 0.5:
-                mvd = bins[i] + ((0.5 - cum) / pro_i) * (bins[i + 1] - bins[i])
-
-                return mvd
+            return mvd
     return np.nan
 
 
@@ -136,7 +115,7 @@ def calc_ED(grp):
     p_sig = np.nansum((grp["S Peak"], grp["P Peak"]), axis=0)
 
     _t, _b = 0, 0
-    for i, _ in enumerate(thresholds[1:-1]):
+    for i, _ in enumerate(thresholds[0:-2]):
         b_mask = (p_sig >= thresholds[i]) & (p_sig <= thresholds[i + 1])
 
         if (c_i := np.nansum(b_mask)) == 0:
@@ -257,7 +236,7 @@ def post_bcpd(src_p, to):
     csv_list = sorted(Path(src_p).rglob("*.csv"))
     df_pbp, df_bcpd, par_bcpd = lib.io.read_bcpd(csv_list)
 
-    if len(df_bcpd) == 0:
+    if len(df_pbp) == 0:
         print("No BCPD record found\n")
         return
 
