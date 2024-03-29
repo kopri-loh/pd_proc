@@ -19,13 +19,11 @@ desc = """
 Measurements from the Back-scatter Cloud Probe with Polarization Detection
 (BCPD) mounted at the Zeppelin Observatory in Ny-Alesund Svalbard.
 
-The index is in seconds starting from the beginning of day.
-This script will produce two sets of CSV files consisting of 10-second
-and 10-minute averages from the probe.
+The index (End Seconds) marks the end of each sampling period in seconds 
+starting from the beginning of day.
 Missing or faulty measurements have been replaced by -1.
-The size distribution of the observed particles have been appended after
-the cloud properties showing upper boundaries of the corresponding size
-bin in diameter.
+The size distribution of observed particles are listed in microns following
+the cloud properties showing upper boundaries of corresponding size bin.
 
 Dataset Created by Loren Oh
 Last modified on March 2024 \n
@@ -133,7 +131,7 @@ def calc_PAS(grp):
     s_time = grp["S Transit Time"] * 25  # [ns]
     p_time = grp["P Transit Time"] * 25  # [ns]
 
-    t_sig = np.nansum((s_time, p_time), axis=0)
+    t_sig = np.nanmean((s_time, p_time), axis=0)
 
     # Count all qualifying signals
     b_mask = (p_sig > thresholds[0]) & (p_sig <= thresholds[-1])
