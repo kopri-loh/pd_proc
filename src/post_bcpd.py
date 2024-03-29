@@ -52,7 +52,7 @@ def calc_LWC(grp):
             continue
 
         # Re-define sample volume with laser width and true PAS
-        sample_vol = pas * 10 * sample_area  # [m^3]
+        sample_vol = pas * sample_area  # [m^3]
 
         c_i = np.nansum(b_mask) / sample_vol  # [#/m^3]
 
@@ -66,17 +66,10 @@ def calc_NC(grp):
     p_sig = np.nansum((grp["S Peak"], grp["P Peak"]), axis=0)
     pas = calc_PAS(grp)
 
-    # Re-calculate sampling volume based on S&P transit times
-    # Transit times are always in units of 25 ns
-    s_time = grp["S Transit Time"] * 25  # [ns]
-    p_time = grp["P Transit Time"] * 25  # [ns]
-
-    t_sig = np.nansum((s_time, p_time), axis=0)
-
     # Count all qualifying signals
     b_mask = (p_sig > thresholds[0]) & (p_sig <= thresholds[-1])
 
-    sample_vol = pas * 10 * sample_area  # [m^3]
+    sample_vol = pas * sample_area  # [m^3]
 
     return np.nansum(b_mask) / sample_vol / 10**6  # [#/cm^3]
 
@@ -98,7 +91,7 @@ def calc_MVD(grp):
 
         pro_i = 0
 
-        sample_vol = pas * 10 * sample_area  # [m^3]
+        sample_vol = pas * sample_area  # [m^3]
 
         c_i = np.nansum(b_mask) / sample_vol  # [#/m^3]
         lwc_i = c_i * np.pi / 6 * m_bins[i] ** 3 * 1e-12  # [g/m^3]
